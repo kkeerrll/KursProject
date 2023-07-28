@@ -1,26 +1,24 @@
-import json
-import requests
+# Создание экземпляра класса для работы с API сайтов с вакансиями
+from api import HeadHunterAPI, SuperJobAPI
+from json_saver import JSONSaver
+from vacancy import Vacancy
 
-from api import Superjob, Action
+hh_api = HeadHunterAPI()
+superjob_api = SuperJobAPI()
 
-#
-# # Создание экземпляра класса для работы с API сайтов с вакансиями
-# hh_api = HeadHunterAPI()
-# superjob_api = SuperJobAPI()
-#
-# # Получение вакансий с разных платформ
-# hh_vacancies = hh_api.get_vacancies("Python")
-# superjob_vacancies = superjob_api.get_vacancies("Python")
-#
-# # Создание экземпляра класса для работы с вакансиями
-# vacancy = Vacancy("Python Developer", "<https://hh.ru/vacancy/123456>", "100 000-150 000 руб.", "Требования: опыт работы от 3 лет...")
-#
-# # Сохранение информации о вакансиях в файл
-# json_saver = JSONSaver()
-# json_saver.add_vacancy(vacancy)
-# json_saver.get_vacancies_by_salary("100 000-150 000 руб.")
-# json_saver.delete_vacancy(vacancy)
-#
+# Получение вакансий с разных платформ
+hh_vacancies = hh_api.get_vacancies("Python")
+superjob_vacancies = superjob_api.get_vacancies("Python")
+
+# Создание экземпляра класса для работы с вакансиями
+vacancy = Vacancy("Python Developer", "<https://hh.ru/vacancy/123456>", "100 000-150 000 руб.", "Требования: опыт работы от 3 лет...")
+
+# Сохранение информации о вакансиях в файл
+json_saver = JSONSaver()
+json_saver.add_vacancy(vacancy)
+json_saver.get_vacancies_by_salary("100 000-150 000 руб.")
+json_saver.delete_vacancy(vacancy)
+
 # # Функция для взаимодействия с пользователем
 # def user_interaction():
 #     platforms = ["HeadHunter", "SuperJob"]
@@ -43,4 +41,5 @@ from api import Superjob, Action
 
 # print(Superjob().api_response())
 
-Action().to_json("pj.txt")
+# JSONSaver().save("pjjnkjnk.json")
+
