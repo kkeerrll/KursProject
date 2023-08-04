@@ -15,6 +15,7 @@ class Abstract_action(ABC):
 
 
 class JSONSaver(Abstract_action):
+    """Класс работает с данными файла"""
     file_name: str = 'vacancies.json'
 
     @staticmethod
@@ -27,10 +28,6 @@ class JSONSaver(Abstract_action):
                 return json.loads(contents)
 
     def save(self, vacancies):
-        """
-        Метод `save()` сохраняет в файл значения
-        """
-
         data = json.dumps(
             vacancies,
             default=lambda o: o.__dict__,
@@ -42,6 +39,8 @@ class JSONSaver(Abstract_action):
         with open(JSONSaver.file_name, 'w', encoding='utf-8') as file:
             file.write(data)
 
+
+
     def add_vacancy(self, vacancy: Vacancy):
         vacancies = self.get_vacancies()
         vacancies.append(vacancy)
@@ -52,13 +51,17 @@ class JSONSaver(Abstract_action):
         salaries = salary_range.split('-')
 
         if salaries != ['']:
-            min_value = int(''.join([letter for letter in salaries[0] if letter.isdigit()]))
-            max_value = int(''.join([letter for letter in salaries[-1] if letter.isdigit()]))
-
-            return [vacancy for vacancy in vacancies if vacancy['salary'] in range(min_value, max_value)]
+            min_value = int(''.join([letter for letter in salaries[0] if letter.isdigit()]) or 0)
+            max_value = int(''.join([letter for letter in salaries[-1] if letter.isdigit()]) or min_value)
+            if min_value == 0:
+                return int(max_value)
+            else:
+                return int((min_value + max_value) / 2)
         else:
             raise ValueError("Invalid salary format")
 
     def delete_vacancy(self, vacancy: Vacancy):
-        vacancies = [v for v in self.get_vacancies() if v['url'] != vacancy.url]
+        vacancies = [v for v in self.get_vacancies() ]
+        # if v['url'] != vacancy.url]
+        # vacancies = [v for v in self.get_vacancies() if v.get('url') != vacancy.url]
         self.save(vacancies)

@@ -16,24 +16,43 @@ class HeadHunterAPI(Api):
         api_response = requests.get(f'https://api.hh.ru/vacancies?text={search}')
         data = api_response.text
         parsed_json = json.loads(data)
-        print(parsed_json)
-        print()
+        # print(parsed_json)
+        # print()
+
         return [Vacancy(item['name'],
                         item['alternate_url'],
-                        item['salary']['to'],
-                        item['snippet']['requirement']) for item in parsed_json['items'] if item['salary'] != None]
+                        f"{item['salary']['to']}-{item['salary']['from']}",
+                        item['salary']['currency'],
+                        item['snippet']['requirement']) for item in parsed_json['items']
+                if item['salary'] != None]
+
+
 
 
 class SuperJobAPI(Api):
     """Класс для superjob"""
 
     def get_vacancies(self, search):
-        url = 'https://api.superjob.ru/2.0/vacancies/'
+        url = 'https://api.superjob.ru/2.0/vacancies'
         api_key = 'v3.r.137692338.bc02cb4c593534e45098114689e8c19f977b0b8d.a951a3ddf5665533a40af06a68e7cdcdc37a3ce3'
-        headers = {'X-Api-App-Id': api_key}
-        api_response = requests.get(url, headers=headers)
-        data = api_response.text
-        parsed_json = json.loads(data)
+        params = {
+            'keyword': search
+        }
 
-        return [Vacancy(item['profession'], item['link'], f"{item['payment_to']}-{item['payment_from']}", item['candidat'])
-                for item in parsed_json['objects']]
+        vacancies = []
+
+        while True:
+            headers = {'X-Api-App-Id': api_key}
+            api_response = requests.get(url, params=params, headers=headers)
+
+            # api_response = requests.get(url, headers=headers)
+            data = api_response.text
+            parsed_json = json.loads(data)
+
+        # Обработка результатов
+
+            return [Vacancy(item['profession'],
+                            item['link'],
+                            f"{item['payment_to']}-{item['payment_from']}",
+                            item['currency'],
+                            item['candidat']) for item in parsed_json['objects'] if item['payment_to']!= None and item['payment_from'] != None]
