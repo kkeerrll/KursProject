@@ -1,58 +1,100 @@
-import json
+import psycopg2
 import requests
-from abc import ABC, abstractmethod
-from vacancy import Vacancy
 
-class Api(ABC):
-    @abstractmethod
-    def get_vacancies(self, search):
-        pass
+def get_info():
+    # Получение данных из API
+    url_employers = f'https://api.hh.ru/employers/?text=IT'
+    response_employers = requests.get(url_employers)
+    employers_data = response_employers.json()
 
+    # Подготовка данных для записи
+    data_to_insert_employers = []  # Список для хранения данных для записи
+    data_to_insert_vacancy = []  # Список для хранения данных для записи
 
-class HeadHunterAPI(Api):
-    """Класс для hh"""
-
-    def get_vacancies(self, search):
-        api_response = requests.get(f'https://api.hh.ru/vacancies?text={search}')
-        data = api_response.text
-        parsed_json = json.loads(data)
-        # print(parsed_json)
-        # print()
-
-        return [Vacancy(item['name'],
-                        item['alternate_url'],
-                        f"{item['salary']['to']}-{item['salary']['from']}",
-                        item['salary']['currency'],
-                        item['snippet']['requirement']) for item in parsed_json['items']
-                if item['salary'] != None]
-
-
-
-
-class SuperJobAPI(Api):
-    """Класс для superjob"""
-
-    def get_vacancies(self, search):
-        url = 'https://api.superjob.ru/2.0/vacancies'
-        api_key = 'v3.r.137692338.bc02cb4c593534e45098114689e8c19f977b0b8d.a951a3ddf5665533a40af06a68e7cdcdc37a3ce3'
-        params = {
-            'keyword': search
+    # for item in api_data:
+    for item in employers_data['items']:
+        # Преобразование данных из API в формат для записи в базу данных
+        processed_data = {
+            'id': item['id'],
+            'Название компании:': item['name'],
+            'Открытые вакансии:': item['open_vacancies'],
         }
+        data_to_insert_employers.append(processed_data)
 
-        vacancies = []
+    # Подключение к базе данных
+    conn = psycopg2.connect(
+        dbname="kurs",
+        user="postgres",
+        password="lika2244",
+        host="localhost",
+        port="5432"
+    )
+    cursor = conn.cursor()
 
-        while True:
-            headers = {'X-Api-App-Id': api_key}
-            api_response = requests.get(url, params=params, headers=headers)
+    # Определение SQL-запроса для создания таблицы
+    create_table_employers = """
+        CREATE TABLE employers (
+            id VARCHAR(50) NOT NULL,
+            name VARCHAR(50) NOT NULL,
+            open_vacancies VARCHAR(50) NOT NULL
+        );
+    """
 
-            # api_response = requests.get(url, headers=headers)
-            data = api_response.text
-            parsed_json = json.loads(data)
+    # Выполнение SQL-запроса
+    cursor.execute(create_table_employers)
 
-        # Обработка результатов
+    create_table_vacancy = """
+        CREATE TABLE  vacancy (
+            name_company VARCHAR(100) NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            salary_from VARCHAR(50),
+            salary_to VARCHAR(50),
+            currency VARCHAR(50),
+            url VARCHAR(100)
+        );
+    """
+    cursor.execute(create_table_vacancy)
 
-            return [Vacancy(item['profession'],
-                            item['link'],
-                            f"{item['payment_to']}-{item['payment_from']}",
-                            item['currency'],
-                            item['candidat']) for item in parsed_json['objects'] if item['payment_to']!= None and item['payment_from'] != None]
+    # Запись данных в базу данных
+    for item in data_to_insert_employers:
+        cursor.execute("INSERT INTO employers (id, name, open_vacancies) "
+                    "VALUES (%s, %s, %s)",
+                    (item['id'], item['Название компании:'], item['Открытые вакансии:']))
+
+
+        # url_vacancies = f"https://api.hh.ru/vacancies?employer_id={item['id']}"
+        url_vacancies = f"https://api.hh.ru/vacancies?employer_id={item['id']}"
+        response_vacancies = requests.get(url_vacancies)
+        vacancy_data = response_vacancies.json()
+
+        if response_vacancies.status_code == 200:
+
+            # for item in api_data:
+            for vacancy in vacancy_data['items']:
+                # Преобразование данных из API в формат для записи в базу данных
+                if vacancy['salary'] != None and vacancy['salary']['currency'] == 'RUR':
+                    processed_data = {
+                        'Название компании': item['Название компании:'],
+                        'Название вакансии:': vacancy['name'],
+                        'Минимальная ЗП:': vacancy['salary']['from'],
+                        'Максимальная ЗП:': vacancy['salary']['to'],
+                        'Валюта:': vacancy['salary']['currency'],
+                        'Ссылка:': vacancy['alternate_url']
+                    }
+                    data_to_insert_vacancy.append(processed_data)
+
+                    cursor.execute("INSERT INTO vacancy (name_company, name, salary_from, salary_to, currency, url) "
+                                   "VALUES (%s, %s, %s, %s, %s, %s)",
+                                   (item['Название компании:'], vacancy['name'], vacancy['salary']['from'], vacancy['salary']['to'],
+                                    vacancy['salary']['currency'], vacancy['alternate_url']
+                                    ))
+        else:
+            print('Ошибка при получении данных о вакансиях:', response_vacancies.status_code)
+
+
+    # Подтверждение изменений и закрытие соединения
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
